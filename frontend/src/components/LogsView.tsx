@@ -26,6 +26,41 @@ export default function LogsView() {
   return (
     <div className="logs">
       <div className="section-title">AI &amp; agent action log ({logs.length})</div>
+      <div className="logs-mobile-list">
+        {logs.map((l) => (
+          <article className="log-card" key={l.id}>
+            <div className="log-card-top">
+              <span className="log-time">{new Date(l.created_at).toLocaleString()}</span>
+              <span className={`tag ${STATUS_TONE[l.status] || 'info'}`}>{l.status}</span>
+            </div>
+            <div className="log-card-brand">{l.brand_name}</div>
+            <p className="log-card-message">{l.customer_message}</p>
+            <div className="log-card-meta">
+              <span><small>Confidence</small><strong>{l.confidence || '—'}</strong></span>
+              <span><small>Retrieval</small><strong>{l.retrieval_method || '—'}</strong></span>
+            </div>
+            <button className="log-details-button" onClick={() => setOpen(open === l.id ? null : l.id)}>
+              {open === l.id ? 'Hide details' : 'View details'}
+              <span aria-hidden="true">{open === l.id ? '−' : '+'}</span>
+            </button>
+            {open === l.id && (
+              <div className="log-detail log-card-detail">
+                <Field label="AI generated" value={l.generated_response} />
+                <Field label="Agent edited" value={l.agent_edited_response} />
+                <Field label="Final sent" value={l.final_response} />
+                {l.error && <Field label="Error" value={l.error} tone="error" />}
+                <div className="field">
+                  <span className="field-label">Retrieved context</span>
+                  <pre>{JSON.stringify(l.retrieved_context, null, 2)}</pre>
+                </div>
+                <div className="muted small">model: {l.model || '—'} · latency: {l.latency_ms ?? '—'}ms</div>
+              </div>
+            )}
+          </article>
+        ))}
+      </div>
+
+      <div className="logs-table-wrap">
       <table className="logs-table">
         <thead>
           <tr>
@@ -79,6 +114,7 @@ export default function LogsView() {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

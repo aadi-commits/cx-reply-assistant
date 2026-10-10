@@ -8,7 +8,10 @@ import {
 } from '../api';
 import AssistantPanel from './AssistantPanel';
 
+type MobilePane = 'conversations' | 'conversation' | 'assistant';
+
 export default function Workspace() {
+  const [mobilePane, setMobilePane] = useState<MobilePane>('conversations');
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [selected, setSelected] = useState<Conversation | null>(null);
   const [sender, setSender] = useState<'CUSTOMER' | 'AGENT'>('CUSTOMER');
@@ -39,6 +42,7 @@ export default function Workspace() {
   async function selectConversation(id: string) {
     setError(null);
     setSelected(await getConversation(id));
+    setMobilePane('conversation');
   }
 
   async function handleSend() {
@@ -62,9 +66,34 @@ export default function Workspace() {
   }, []);
 
   return (
-    <div className="workspace">
+    <div className={`workspace mobile-pane-${mobilePane}`}>
+      <nav className="mobile-workspace-nav" aria-label="Workspace views">
+        <button
+          className={mobilePane === 'conversations' ? 'active' : ''}
+          onClick={() => setMobilePane('conversations')}
+          aria-current={mobilePane === 'conversations' ? 'page' : undefined}
+        >Inbox</button>
+        <button
+          className={mobilePane === 'conversation' ? 'active' : ''}
+          onClick={() => setMobilePane('conversation')}
+          disabled={!selected}
+          aria-current={mobilePane === 'conversation' ? 'page' : undefined}
+        >Chat</button>
+        <button
+          className={mobilePane === 'assistant' ? 'active' : ''}
+          onClick={() => setMobilePane('assistant')}
+          disabled={!selected}
+          aria-current={mobilePane === 'assistant' ? 'page' : undefined}
+        >AI Reply</button>
+      </nav>
       <aside className="sidebar">
-        <div className="section-title">Conversations</div>
+        <div className="sidebar-heading">
+          <div>
+            <h2>Inbox</h2>
+            <p>{conversations.length} conversations</p>
+          </div>
+          <span className="inbox-indicator" aria-label="Inbox available" />
+        </div>
         {loading && <div className="muted">Loading…</div>}
         {conversations.map((c) => (
           <button
@@ -83,11 +112,14 @@ export default function Workspace() {
         {selected ? (
           <>
             <div className="conversation-header">
-              <div>
+              <div className="conversation-identity">
                 <h2>{selected.customer_name}</h2>
                 <p>
-                  {selected.brand_name} · Order {selected.order_id} ·{' '}
-                  <span className="muted">{selected.customer_email}</span>
+                  <span className="conversation-meta">{selected.brand_name}</span>
+                  <span className="meta-separator">·</span>
+                  <span className="conversation-meta">Order {selected.order_id}</span>
+                  <span className="meta-separator">·</span>
+                  <span className="muted conversation-email">{selected.customer_email}</span>
                 </p>
               </div>
               <span className="badge">{selected.status}</span>
