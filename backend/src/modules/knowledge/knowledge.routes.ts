@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { pool } from '../../config/database';
+import { hasPgvector, pool } from '../../config/database';
 import { embedText, toVectorLiteral } from '../../services/embeddings';
 import { requireBrandAccess, brandFromParam, brandFromKbEntry } from '../../middleware/auth';
 
@@ -13,6 +13,7 @@ const categories = ['RETURN', 'REFUND', 'SHIPPING', 'CANCELLATION', 'GENERAL'];
  * working via the keyword retrieval path and simply has a stale/empty embedding.
  */
 async function refreshEmbedding(id: string, title: string, content: string): Promise<void> {
+  if (!(await hasPgvector())) return;
   try {
     const vec = await embedText(`${title}\n${content}`);
     if (!vec) return; // no provider configured

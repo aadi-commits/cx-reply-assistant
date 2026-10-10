@@ -1,3 +1,5 @@
+SET search_path = public, extensions;
+
 -- Migration 001: AI layer support
 -- Idempotent. Safe to run multiple times.
 -- Adds: keyword full-text search, vector index, embedding staleness tracking,

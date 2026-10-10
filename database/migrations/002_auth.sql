@@ -1,3 +1,5 @@
+SET search_path = public, extensions;
+
 -- Migration 002: demo authentication + brand authorization
 -- Idempotent. A lightweight, clearly-labeled demo auth model:
 --   agents log in and carry brand memberships; the API authorizes every

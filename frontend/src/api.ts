@@ -1,4 +1,6 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+// Same-origin by default for the single-service Render deployment.
+// frontend/.env.example overrides this for local Vite development.
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 // ---- Auth token (demo) -----------------------------------------------------
 const TOKEN_KEY = 'cx_token';

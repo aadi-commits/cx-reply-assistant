@@ -11,33 +11,29 @@ export interface LlmReply {
 }
 
 /**
- * Generate a reply draft. When OPENROUTER_API_KEY is set, calls OpenRouter.
+ * Generate a reply draft. When NVIDIA_API_KEY is set, calls NVIDIA NIM.
  * Otherwise returns a clearly-labeled deterministic dev draft so the full
  * loop remains testable without credentials.
  */
 export async function generateReply(input: PromptInput): Promise<LlmReply> {
   if (!hasLlm()) {
     if (!env.allowDevFallback) {
-      throw new ExternalServiceError('No LLM configured (set OPENROUTER_API_KEY).');
+      throw new ExternalServiceError('No LLM configured (set NVIDIA_API_KEY in backend/.env).');
     }
     return devDraft(input);
   }
 
   const res = await fetchWithTimeout(
-    `${env.openrouter.baseUrl}/chat/completions`,
+    `${env.nvidia.baseUrl}/chat/completions`,
     {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${env.openrouter.apiKey}`,
-        // Optional attribution headers recommended by OpenRouter
-        'HTTP-Referer': env.frontendUrl,
-        'X-Title': 'CX Reply Assistant'
+        Authorization: `Bearer ${env.nvidia.apiKey}`
       },
       body: JSON.stringify({
-        model: env.openrouter.model,
+        model: env.nvidia.model,
         temperature: 0.3,
-        response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: buildUserMessage(input) }
@@ -49,7 +45,7 @@ export async function generateReply(input: PromptInput): Promise<LlmReply> {
 
   if (!res.ok) {
     const detail = await safeText(res);
-    throw new ExternalServiceError(`OpenRouter returned ${res.status}: ${detail}`);
+    throw new ExternalServiceError(`NVIDIA NIM returned ${res.status}: ${detail}`);
   }
 
   const data = (await res.json()) as {
@@ -57,14 +53,14 @@ export async function generateReply(input: PromptInput): Promise<LlmReply> {
   };
   const content = data.choices?.[0]?.message?.content;
   if (!content) {
-    throw new ExternalServiceError('OpenRouter returned an empty response');
+    throw new ExternalServiceError('NVIDIA NIM returned an empty response');
   }
 
   const parsed = parseModelJson(content);
   return {
     reply: parsed.reply,
     canAnswer: parsed.canAnswer,
-    model: env.openrouter.model,
+    model: env.nvidia.model,
     devFallback: false
   };
 }

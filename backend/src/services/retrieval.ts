@@ -1,4 +1,4 @@
-import { pool } from '../config/database';
+import { hasPgvector, pool } from '../config/database';
 import { env } from '../config/env';
 import { embedText, toVectorLiteral } from './embeddings';
 
@@ -38,12 +38,16 @@ export async function retrieveKnowledge(
   if (!trimmed) return { method: 'none', entries: [], relevant: [] };
 
   // --- 1. Vector path -------------------------------------------------------
+  // Local PostgreSQL installs often lack pgvector. In that case, avoid calling
+  // the embeddings API and use the supported keyword retrieval path.
   let queryVec: number[] | null = null;
-  try {
-    queryVec = await embedText(trimmed);
-  } catch {
-    // Embedding provider failed — degrade to keyword search rather than erroring.
-    queryVec = null;
+  if (await hasPgvector()) {
+    try {
+      queryVec = await embedText(trimmed);
+    } catch {
+      // Embedding provider failed — degrade to keyword search rather than erroring.
+      queryVec = null;
+    }
   }
 
   if (queryVec) {

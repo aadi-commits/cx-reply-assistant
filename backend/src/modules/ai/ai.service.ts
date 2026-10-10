@@ -108,7 +108,7 @@ export async function runGenerate(conversationId: string): Promise<GenerateOutpu
       generated: null,
       status: 'FAILED',
       confidence: deriveConfidence(retrieval.method, retrieval.relevant.length, false),
-      model: env.openrouter.model,
+      model: env.nvidia.model,
       latencyMs: Date.now() - started,
       error: (err as Error).message
     });

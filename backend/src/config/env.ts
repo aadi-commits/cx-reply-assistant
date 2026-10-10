@@ -13,11 +13,11 @@ export const env = {
   port: Number(process.env.PORT || 4000),
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
 
-  // LLM (OpenRouter, OpenAI-compatible chat completions)
-  openrouter: {
-    apiKey: process.env.OPENROUTER_API_KEY || '',
-    model: process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini',
-    baseUrl: process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1'
+  // NVIDIA NIM (OpenAI-compatible chat completions)
+  nvidia: {
+    apiKey: process.env.NVIDIA_API_KEY || '',
+    model: process.env.NVIDIA_MODEL || 'openai/gpt-oss-20b',
+    baseUrl: (process.env.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1').replace(/\/$/, '')
   },
 
   // Embeddings (OpenAI-compatible). Can point at OpenAI, DeepInfra, etc.
@@ -52,5 +52,5 @@ export const env = {
   }
 };
 
-export const hasLlm = () => Boolean(env.openrouter.apiKey);
+export const hasLlm = () => Boolean(env.nvidia.apiKey);
 export const hasEmbeddings = () => Boolean(env.embedding.apiKey);

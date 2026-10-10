@@ -3,26 +3,38 @@ import { Pool, PoolConfig } from 'pg';
 /**
  * Database connection.
  *
- * Two supported configuration styles (discrete vars take precedence):
+ * A non-empty DATABASE_URL takes priority (recommended for hosted PostgreSQL
+ * providers such as Supabase). If it is blank, local discrete variables are used:
+ * PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE, and PGSSL.
  *
- * 1. Discrete vars (recommended for local dev — no URL-encoding needed,
- *    so passwords containing @ : / # etc. work as-is):
- *      PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE, PGSSL
- *
- * 2. A single connection string (recommended for hosted providers like
- *    Supabase, which give you one URL):
- *      DATABASE_URL=postgresql://user:pass@host:5432/db
- *    NOTE: if your password has special characters, URL-encode them.
+ * URL-encode reserved characters in DATABASE_URL passwords. Discrete PGPASSWORD
+ * values do not need URL encoding.
  */
 function buildConfig(): PoolConfig {
-  const hasDiscrete = Boolean(process.env.PGPASSWORD || process.env.PGUSER || process.env.PGDATABASE);
-
   const base: PoolConfig = {
     connectionTimeoutMillis: 10000,
     idleTimeoutMillis: 30000,
-    max: 10
+    max: Number(process.env.PGPOOL_MAX || 10),
+    // Supabase commonly installs extensions such as pgvector in `extensions`.
+    // Including it in search_path also keeps vector operators/types resolvable.
+    options: '-c search_path=public,extensions'
   };
 
+  // DATABASE_URL MUST win over PGHOST/PGUSER/etc. The local .env template
+  // contains PG* defaults, so checking those first would silently ignore a
+  // configured Supabase URL during deployment.
+  const url = process.env.DATABASE_URL?.trim();
+  if (url) {
+    const explicitlyRequiresSsl = /^(1|true|require)$/i.test(process.env.PGSSL || '');
+    const providerRequiresSsl = /supabase|render|neon|amazonaws|sslmode=require/i.test(url);
+    return {
+      ...base,
+      connectionString: url,
+      ssl: explicitlyRequiresSsl || providerRequiresSsl ? { rejectUnauthorized: false } : undefined
+    };
+  }
+
+  const hasDiscrete = Boolean(process.env.PGPASSWORD || process.env.PGUSER || process.env.PGDATABASE || process.env.PGHOST);
   if (hasDiscrete) {
     const sslEnabled = /^(1|true|require)$/i.test(process.env.PGSSL || '');
     return {
@@ -36,20 +48,9 @@ function buildConfig(): PoolConfig {
     };
   }
 
-  const url = process.env.DATABASE_URL;
-  if (!url) {
-    throw new Error(
-      'No database configuration found. Set PGHOST/PGUSER/PGPASSWORD/PGDATABASE (recommended for local) or DATABASE_URL.'
-    );
-  }
-
-  // Managed Postgres (Supabase, Render, etc.) generally requires SSL.
-  const needsSsl = /supabase|render|neon|amazonaws|sslmode=require/i.test(url);
-  return {
-    ...base,
-    connectionString: url,
-    ssl: needsSsl ? { rejectUnauthorized: false } : undefined
-  };
+  throw new Error(
+    'No database configuration found. Set DATABASE_URL (recommended for Supabase/hosted Postgres) or PGHOST/PGUSER/PGPASSWORD/PGDATABASE.'
+  );
 }
 
 export const pool = new Pool(buildConfig());
@@ -59,3 +60,25 @@ pool.on('error', (err: Error) => {
   // Log it so it never crashes the process silently.
   console.error('Unexpected PG pool error:', err.message);
 });
+
+
+let pgvectorAvailability: Promise<boolean> | null = null;
+
+/** True only when the extension and the expected vector column are both present. */
+export async function hasPgvector(): Promise<boolean> {
+  if (!pgvectorAvailability) {
+    pgvectorAvailability = pool
+      .query(
+        `SELECT
+           EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector')
+           AND EXISTS (
+             SELECT 1 FROM information_schema.columns
+              WHERE table_schema = 'public' AND table_name = 'kb_entries'
+                AND column_name = 'embedding' AND udt_name = 'vector'
+           ) AS enabled`
+      )
+      .then(({ rows }) => Boolean(rows[0]?.enabled))
+      .catch(() => false);
+  }
+  return pgvectorAvailability;
+}
