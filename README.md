@@ -247,3 +247,10 @@ CORS is restricted to `FRONTEND_URL`. See [docs/architecture.md](docs/architectu
 ## Deploy to Render with Supabase and NVIDIA
 
 See [RENDER_DEPLOY.md](RENDER_DEPLOY.md) for the end-to-end Blueprint instructions. The root `render.yaml` deploys one Render web service: it builds both the frontend and backend, initializes the Supabase schema at service startup, and serves the React app plus `/api` from one origin. Set only the `DATABASE_URL` Supabase Session Pooler URI and `NVIDIA_API_KEY` secrets in Render; the Blueprint generates `AUTH_SECRET` automatically.
+
+
+## Supabase destructive reset and fresh demo data
+
+If the database contains stale demo records, first create a backup in the Supabase dashboard, then extract the complete project ZIP and run `RESET_SUPABASE_AND_RESEED.bat` from the project root on Windows. Do not run the BAT alone from Downloads: it needs the adjacent `backend` and `database` folders plus `backend\.env`. It checks the configured Supabase host, asks you to confirm the host and the destructive action, drops only this application's tables, and runs the initializer to recreate the schema and load synthetic demo data. It deliberately does not drop Supabase-managed `auth`, `storage`, `realtime`, or `extensions` schemas. The reset has not been run against your live database by the project author; review the target host carefully and take a backup first.
+
+The seed data uses fictional customers with reserved `example.test` email addresses, three fictional brands, support-policy knowledge entries, and sample conversations. `Sam Rivera` and `Alex Chen` are demo **agent accounts** shown on the login screen; the customer names shown in the inbox are the people contacting support, so these identities are intentionally different. The data is synthetic and must not be treated as real customer records.
