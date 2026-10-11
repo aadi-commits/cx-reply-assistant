@@ -1,131 +1,50 @@
-INSERT INTO brands (name)
-VALUES ('Acme Drinks'), ('FreshBottle')
+-- Fictional but realistic demonstration data. These records are synthetic and
+-- are intended only for testing the CX Reply Assistant; they are not real customers.
+
+INSERT INTO brands (name) VALUES
+  ('Acme Drinks'),
+  ('Northstar Hydration')
 ON CONFLICT (name) DO NOTHING;
 
-INSERT INTO customers (name, email)
-SELECT 'John Doe', 'john@example.com'
-WHERE NOT EXISTS (
-    SELECT 1 FROM customers WHERE email = 'john@example.com'
-);
+INSERT INTO customers (name, email) VALUES
+  ('Alex Chen', 'alex@datastraw.demo'),
+  ('Maya Patel', 'maya.patel@example.test'),
+  ('Ethan Brooks', 'ethan.brooks@example.test')
+ON CONFLICT DO NOTHING;
 
-INSERT INTO customers (name, email)
-SELECT 'Jane Smith', 'jane@example.com'
-WHERE NOT EXISTS (
-    SELECT 1 FROM customers WHERE email = 'jane@example.com'
-);
-
+-- Support knowledge: specific and internally consistent example policies.
 INSERT INTO kb_entries (brand_id, category, title, content)
-SELECT b.id, 'REFUND', 'Damaged Product Refund',
-       'Damaged products can be refunded within 7 days of delivery.'
+SELECT b.id, v.category, v.title, v.content
 FROM brands b
-WHERE b.name = 'Acme Drinks'
-AND NOT EXISTS (
-    SELECT 1 FROM kb_entries k
-    WHERE k.brand_id = b.id AND k.title = 'Damaged Product Refund'
-);
+JOIN (VALUES
+  ('Acme Drinks','REFUND','Damaged bottle refund','If a bottle arrives cracked, leaking, or otherwise damaged, ask the customer for the order number and a photo. Offer a replacement or refund within 30 days of delivery. Do not ask the customer to return a leaking bottle.'),
+  ('Northstar Hydration','RETURN','Unused item returns','Unused Northstar products in their original packaging can be returned within 30 days of delivery. The customer should provide the order number before a return is approved.'),
+  ('Northstar Hydration','SHIPPING','Delivery estimates','Standard delivery normally takes 3–5 business days after dispatch. Tracking is emailed when the parcel leaves the warehouse. Carrier delays can add 1–3 business days.')
+) AS v(brand_name, category, title, content) ON b.name = v.brand_name
+WHERE NOT EXISTS (SELECT 1 FROM kb_entries k WHERE k.brand_id = b.id AND k.title = v.title);
 
-INSERT INTO kb_entries (brand_id, category, title, content)
-SELECT b.id, 'RETURN', 'Return Policy',
-       'Unused products can be returned within 14 days of delivery.'
-FROM brands b
-WHERE b.name = 'Acme Drinks'
-AND NOT EXISTS (
-    SELECT 1 FROM kb_entries k
-    WHERE k.brand_id = b.id AND k.title = 'Return Policy'
-);
+-- Conversations: each order references a matching fictional customer and brand.
+INSERT INTO conversations (brand_id, customer_id, order_id, status)
+SELECT b.id, c.id, v.order_id, v.status
+FROM (VALUES
+  ('Acme Drinks','alex@datastraw.demo','NSH-24081','OPEN'),
+  ('Northstar Hydration','maya.patel@example.test','NSH-24076','OPEN'),
+  ('Northstar Hydration','ethan.brooks@example.test','NSH-24063','OPEN')
+) AS v(brand_name, customer_email, order_id, status)
+JOIN brands b ON b.name = v.brand_name
+JOIN customers c ON c.email = v.customer_email
+WHERE NOT EXISTS (SELECT 1 FROM conversations x WHERE x.order_id = v.order_id);
 
-INSERT INTO kb_entries (brand_id, category, title, content)
-SELECT b.id, 'SHIPPING', 'Shipping Policy',
-       'Standard shipping usually takes 3 to 5 business days.'
-FROM brands b
-WHERE b.name = 'Acme Drinks'
-AND NOT EXISTS (
-    SELECT 1 FROM kb_entries k
-    WHERE k.brand_id = b.id AND k.title = 'Shipping Policy'
-);
-
-INSERT INTO kb_entries (brand_id, category, title, content)
-SELECT b.id, 'CANCELLATION', 'Cancellation Policy',
-       'Orders can be cancelled before they are dispatched.'
-FROM brands b
-WHERE b.name = 'Acme Drinks'
-AND NOT EXISTS (
-    SELECT 1 FROM kb_entries k
-    WHERE k.brand_id = b.id AND k.title = 'Cancellation Policy'
-);
-
-INSERT INTO kb_entries (brand_id, category, title, content)
-SELECT b.id, 'REFUND', 'Damaged Product Refund',
-       'Damaged products can be refunded within 30 days of delivery.'
-FROM brands b
-WHERE b.name = 'FreshBottle'
-AND NOT EXISTS (
-    SELECT 1 FROM kb_entries k
-    WHERE k.brand_id = b.id AND k.title = 'Damaged Product Refund'
-);
-
-INSERT INTO kb_entries (brand_id, category, title, content)
-SELECT b.id, 'RETURN', 'Return Policy',
-       'Unused products can be returned within 30 days of delivery.'
-FROM brands b
-WHERE b.name = 'FreshBottle'
-AND NOT EXISTS (
-    SELECT 1 FROM kb_entries k
-    WHERE k.brand_id = b.id AND k.title = 'Return Policy'
-);
-
-INSERT INTO kb_entries (brand_id, category, title, content)
-SELECT b.id, 'SHIPPING', 'Shipping Policy',
-       'Standard shipping usually takes 2 to 4 business days.'
-FROM brands b
-WHERE b.name = 'FreshBottle'
-AND NOT EXISTS (
-    SELECT 1 FROM kb_entries k
-    WHERE k.brand_id = b.id AND k.title = 'Shipping Policy'
-);
-
-INSERT INTO kb_entries (brand_id, category, title, content)
-SELECT b.id, 'CANCELLATION', 'Cancellation Policy',
-       'Orders can be cancelled until 2 hours after placement.'
-FROM brands b
-WHERE b.name = 'FreshBottle'
-AND NOT EXISTS (
-    SELECT 1 FROM kb_entries k
-    WHERE k.brand_id = b.id AND k.title = 'Cancellation Policy'
-);
-
-INSERT INTO conversations (brand_id, customer_id, order_id)
-SELECT b.id, c.id, 'ORD-ACME-1001'
-FROM brands b
-JOIN customers c ON c.email = 'john@example.com'
-WHERE b.name = 'Acme Drinks'
-AND NOT EXISTS (
-    SELECT 1 FROM conversations WHERE order_id = 'ORD-ACME-1001'
-);
-
-INSERT INTO conversations (brand_id, customer_id, order_id)
-SELECT b.id, c.id, 'ORD-FRESH-2001'
-FROM brands b
-JOIN customers c ON c.email = 'jane@example.com'
-WHERE b.name = 'FreshBottle'
-AND NOT EXISTS (
-    SELECT 1 FROM conversations WHERE order_id = 'ORD-FRESH-2001'
-);
-
+-- Seed two or three realistic message turns per conversation, without duplicates.
 INSERT INTO messages (conversation_id, sender_type, content)
-SELECT id, 'CUSTOMER', 'My order was delivered but the bottle is broken. What can I do?'
-FROM conversations
-WHERE order_id = 'ORD-ACME-1001'
-AND NOT EXISTS (
-    SELECT 1 FROM messages m
-    WHERE m.conversation_id = conversations.id
-);
-
-INSERT INTO messages (conversation_id, sender_type, content)
-SELECT id, 'CUSTOMER', 'My bottle arrived damaged. What is your refund policy?'
-FROM conversations
-WHERE order_id = 'ORD-FRESH-2001'
-AND NOT EXISTS (
-    SELECT 1 FROM messages m
-    WHERE m.conversation_id = conversations.id
+SELECT c.id, v.sender_type, v.content
+FROM (VALUES
+ ('NSH-24081','CUSTOMER','Hi, my insulated bottle arrived with a crack near the lid and leaks when I fill it. Could you help?'),
+ ('NSH-24076','CUSTOMER','My tracking has not changed for four days. Is my order still on the way?'),
+ ('NSH-24076','AGENT','I can check the shipment. Standard delivery is usually 3–5 business days after dispatch. Please allow me to review the tracking details.'),
+ ('NSH-24063','CUSTOMER','I ordered the wrong colour yesterday. Can I cancel and place a new order?')
+) AS v(order_id, sender_type, content)
+JOIN conversations c ON c.order_id = v.order_id
+WHERE NOT EXISTS (
+  SELECT 1 FROM messages m WHERE m.conversation_id = c.id AND m.sender_type = v.sender_type AND m.content = v.content
 );

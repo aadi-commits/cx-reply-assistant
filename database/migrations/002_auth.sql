@@ -29,20 +29,9 @@ INSERT INTO agents (name, email, is_admin)
 SELECT 'Sam Rivera', 'sam@datastraw.demo', TRUE
 WHERE NOT EXISTS (SELECT 1 FROM agents WHERE email = 'sam@datastraw.demo');
 
-INSERT INTO agents (name, email, is_admin)
-SELECT 'Alex Chen', 'alex@datastraw.demo', FALSE
-WHERE NOT EXISTS (SELECT 1 FROM agents WHERE email = 'alex@datastraw.demo');
-
 -- Sam -> every brand
 INSERT INTO agent_brands (agent_id, brand_id)
 SELECT a.id, b.id
 FROM agents a CROSS JOIN brands b
 WHERE a.email = 'sam@datastraw.demo'
-ON CONFLICT DO NOTHING;
-
--- Alex -> Acme Drinks only
-INSERT INTO agent_brands (agent_id, brand_id)
-SELECT a.id, b.id
-FROM agents a JOIN brands b ON b.name = 'Acme Drinks'
-WHERE a.email = 'alex@datastraw.demo'
 ON CONFLICT DO NOTHING;
