@@ -3,7 +3,6 @@ setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 set "ROOT=%~dp0"
 set "CX_ROOT=%~dp0"
-set "HOST_FILE=%TEMP%\cx_reply_assistant_target_host.txt"
 title CX Reply Assistant - Supabase Reset
 
 echo ============================================================
@@ -19,22 +18,12 @@ if not exist "%ROOT%backend\package.json" goto PROJECT_FOLDER_ERROR
 if not exist "%ROOT%database\schema.sql" goto PROJECT_FOLDER_ERROR
 if not exist "%ROOT%backend\.env" goto ENV_FILE_ERROR
 
-if exist "%HOST_FILE%" del "%HOST_FILE%" >nul 2>nul
-powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$envFile = Join-Path $env:CX_ROOT 'backend\.env'; $line = Get-Content -LiteralPath $envFile | Where-Object { $_ -match '^\s*DATABASE_URL\s*=' } | Select-Object -Last 1; if (!$line) { Write-Host '[ERROR] DATABASE_URL was not found in backend\.env'; exit 1 }; $value = ($line -replace '^\s*DATABASE_URL\s*=\s*','').Trim().Trim([char]34).Trim([char]39); try { $u = [uri]$value } catch { Write-Host '[ERROR] DATABASE_URL is not a valid URL'; exit 1 }; if ($u.Scheme -notin @('postgres','postgresql') -or $u.Host -notmatch '\.supabase\.(co|com)$' -or $value -match 'PROJECT_REF|YOUR_ENCODED_DB_PASSWORD|URL_ENCODED_DB_PASSWORD|POOLER_HOST') { Write-Host '[ERROR] DATABASE_URL is a placeholder, invalid, or not a Supabase PostgreSQL URL'; exit 1 }; Set-Content -LiteralPath $env:HOST_FILE -Value $u.Host -NoNewline; Write-Host ('Target host: ' + $u.Host); Write-Host ('Target database: ' + $u.AbsolutePath.TrimStart('/'))"
+powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$envFile = Join-Path $env:CX_ROOT 'backend\.env'; $line = Get-Content -LiteralPath $envFile | Where-Object { $_ -match '^\s*DATABASE_URL\s*=' } | Select-Object -Last 1; if (!$line) { Write-Host '[ERROR] DATABASE_URL was not found in backend\.env'; exit 1 }; $value = ($line -replace '^\s*DATABASE_URL\s*=\s*','').Trim().Trim([char]34).Trim([char]39); try { $u = [uri]$value } catch { Write-Host '[ERROR] DATABASE_URL is not a valid URL'; exit 1 }; if ($u.Scheme -notin @('postgres','postgresql') -or $u.Host -notmatch '\.supabase\.(co|com)$' -or $value -match 'PROJECT_REF|YOUR_ENCODED_DB_PASSWORD|URL_ENCODED_DB_PASSWORD|POOLER_HOST') { Write-Host '[ERROR] DATABASE_URL is a placeholder, invalid, or not a Supabase PostgreSQL URL'; exit 1 }; Write-Host ('Supabase database URL validated. Database: ' + $u.AbsolutePath.TrimStart('/'))"
 if errorlevel 1 goto DATABASE_URL_ERROR
-if not exist "%HOST_FILE%" goto DATABASE_URL_ERROR
-for /f "usebackq delims=" %%H in ("%HOST_FILE%") do set "TARGET_HOST=%%H"
-del "%HOST_FILE%" >nul 2>nul
 
 echo.
-set /p "PROJECT_CONFIRM=Type the target host exactly as shown above: "
-if not defined PROJECT_CONFIRM goto HOST_MISMATCH
-if /I not "%PROJECT_CONFIRM%"=="%TARGET_HOST%" goto HOST_MISMATCH
-
-echo.
-echo FINAL WARNING: all existing data in this app's tables will be deleted.
-set /p "RESET_CONFIRM=Type exactly RESET CX REPLY ASSISTANT to continue: "
-if not "%RESET_CONFIRM%"=="RESET CX REPLY ASSISTANT" goto CANCELLED
+echo WARNING: existing data in this app's tables will be deleted.
+echo Starting reset automatically...
 
 echo.
 where node >nul 2>nul
