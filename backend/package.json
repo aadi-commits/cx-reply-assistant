@@ -8,7 +8,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "tsx --test src/tests/*.test.ts",
-    "ai:test:nvidia": "tsx src/scripts/test-nvidia.ts"
+    "ai:test:nvidia": "tsx src/scripts/test-nvidia.ts",
+    "db:reset:drop": "tsx src/scripts/reset-db.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",
